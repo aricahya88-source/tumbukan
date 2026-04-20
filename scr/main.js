@@ -3,13 +3,14 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 const app = document.querySelector('#app');
+
 app.innerHTML = `
   <div class="app-shell">
     <div class="hud">
       <h1>Simulasi Tumbukan 2 Bola 3D</h1>
       <p>
-        Pilih jenis tumbukan, atur massa dan kecepatan awal, lalu amati perubahan
-        momentum, energi kinetik, dan rotasi bola yang tampak menggelinding di lintasan.
+        Atur massa, kecepatan awal, dan jenis tumbukan. Dua bola bergerak pada satu lintasan,
+        bertumbukan, lalu menampilkan perubahan momentum, energi kinetik, dan efek menggelinding.
       </p>
 
       <div class="stats">
@@ -43,7 +44,7 @@ app.innerHTML = `
         </div>
       </div>
 
-      <div class="segmented" data-mode-group>
+      <div class="segmented">
         <button class="mode-chip active" data-mode="elastic">Lenting sempurna</button>
         <button class="mode-chip" data-mode="partial">Lenting sebagian</button>
         <button class="mode-chip" data-mode="inelastic">Tak lenting sama sekali</button>
@@ -93,14 +94,14 @@ app.innerHTML = `
       </div>
 
       <div class="formula-box">
-        <strong>Rumus 1D yang dipakai:</strong>
-        <span>Momentum total dijaga konstan, sedangkan jenis tumbukan diatur oleh koefisien restitusi <em>e</em>.</span>
-        <span>Tak lenting sama sekali membuat kedua bola bergerak bersama setelah tumbukan.</span>
+        <strong>Model tumbukan 1D</strong>
+        <span>Momentum total dipertahankan, sedangkan jenis tumbukan diatur oleh koefisien restitusi.</span>
+        <span>Pada tumbukan tak lenting sama sekali, kedua bola bergerak bersama setelah tumbukan.</span>
       </div>
 
       <div class="legend">
-        Drag untuk memutar kamera. Scroll untuk zoom. Bola bergerak pada satu lintasan agar
-        perbandingan antara teori dan animasi lebih mudah diamati.
+        Drag untuk memutar kamera. Scroll untuk zoom. Simulasi dibuat pada satu lintasan agar
+        hubungan antara teori dan animasi lebih mudah diamati.
       </div>
     </div>
 
@@ -123,7 +124,9 @@ const applyButton = document.querySelector('[data-apply]');
 const resetButton = document.querySelector('[data-reset]');
 const pauseButton = document.querySelector('[data-pause]');
 const sliderInputs = [...document.querySelectorAll('[data-input]')];
-const sliderValues = Object.fromEntries([...document.querySelectorAll('[data-value]')].map((node) => [node.dataset.value, node]));
+const sliderValues = Object.fromEntries(
+  [...document.querySelectorAll('[data-value]')].map((node) => [node.dataset.value, node]),
+);
 const modeButtons = [...document.querySelectorAll('[data-mode]')];
 const vectorToggle = document.querySelector('[data-toggle="show-vectors"]');
 const labelToggle = document.querySelector('[data-toggle="show-labels"]');
@@ -206,14 +209,24 @@ lane.position.set(0, 0.02, 0);
 lane.receiveShadow = true;
 scene.add(lane);
 
-const laneMarkMaterial = new THREE.MeshStandardMaterial({ color: 0x5b9cff, emissive: 0x17315a, roughness: 0.5 });
+const laneMarkMaterial = new THREE.MeshStandardMaterial({
+  color: 0x5b9cff,
+  emissive: 0x17315a,
+  roughness: 0.5,
+});
+
 for (let i = -6; i <= 6; i += 2) {
   const marker = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.04, 0.08), laneMarkMaterial);
   marker.position.set(i, 0.08, 0);
   scene.add(marker);
 }
 
-const railMaterial = new THREE.MeshStandardMaterial({ color: 0x0f1d2b, roughness: 0.84, metalness: 0.12 });
+const railMaterial = new THREE.MeshStandardMaterial({
+  color: 0x0f1d2b,
+  roughness: 0.84,
+  metalness: 0.12,
+});
+
 [
   { x: 0, y: 0.5, z: -1.55, sx: 14.8, sy: 0.35, sz: 0.22 },
   { x: 0, y: 0.5, z: 1.55, sx: 14.8, sy: 0.35, sz: 0.22 },
@@ -249,10 +262,10 @@ function formatNumber(value, digits = 2) {
 
 function createBallTexture(baseColor, accentColor, label) {
   const size = 512;
-  const canvasTexture = document.createElement('canvas');
-  canvasTexture.width = size;
-  canvasTexture.height = size;
-  const ctx = canvasTexture.getContext('2d');
+  const textureCanvas = document.createElement('canvas');
+  textureCanvas.width = size;
+  textureCanvas.height = size;
+  const ctx = textureCanvas.getContext('2d');
 
   ctx.fillStyle = baseColor;
   ctx.fillRect(0, 0, size, size);
@@ -261,19 +274,19 @@ function createBallTexture(baseColor, accentColor, label) {
   ctx.fillRect(0, 120, size, 70);
   ctx.fillRect(0, 320, size, 70);
 
-  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.92)';
   ctx.lineWidth = 16;
   ctx.beginPath();
   ctx.arc(size / 2, size / 2, 120, 0, Math.PI * 2);
   ctx.stroke();
 
-  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.fillStyle = 'rgba(255,255,255,0.95)';
   ctx.font = 'bold 132px Inter, Arial, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(label, size / 2, size / 2);
 
-  const texture = new THREE.CanvasTexture(canvasTexture);
+  const texture = new THREE.CanvasTexture(textureCanvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 8;
   return texture;
@@ -316,7 +329,14 @@ function createBall({ label, shortLabel, color, accent, x, mass, velocity }) {
   shadow.scale.set(1.08, 0.72, 1);
   visual.add(shadow);
 
-  const arrow = new THREE.ArrowHelper(new THREE.Vector3(1, 0, 0), new THREE.Vector3(), 0.001, Number(color.replace('#', '0x')), 0.28, 0.15);
+  const arrow = new THREE.ArrowHelper(
+    new THREE.Vector3(1, 0, 0),
+    new THREE.Vector3(),
+    0.001,
+    Number(color.replace('#', '0x')),
+    0.28,
+    0.15,
+  );
   scene.add(arrow);
 
   return {
@@ -324,7 +344,6 @@ function createBall({ label, shortLabel, color, accent, x, mass, velocity }) {
     mass,
     x,
     v: velocity,
-    colorHex: Number(color.replace('#', '0x')),
     visual,
     roller,
     sphere,
@@ -357,6 +376,7 @@ function clearBodies() {
 
 function buildSceneObjects() {
   clearBodies();
+
   bodies = [
     createBall({
       label: 'Bola A',
@@ -377,6 +397,7 @@ function buildSceneObjects() {
       velocity: parameters.rightSpeed,
     }),
   ];
+
   syncVisuals();
   setOverlayVisibility();
 }
@@ -389,7 +410,13 @@ function updateSliderReadouts() {
 }
 
 function updateModeButtons() {
-  modeButtons.forEach((button) => button.classList.toggle('active', button.dataset.mode === parameters.collisionMode));
+  modeButtons.forEach((button) => {
+    button.classList.toggle('active', button.dataset.mode === parameters.collisionMode);
+  });
+}
+
+function kineticEnergy(body) {
+  return 0.5 * body.mass * body.v * body.v;
 }
 
 function updateStats() {
@@ -399,12 +426,12 @@ function updateStats() {
   statusValue.textContent = isPaused ? 'Pause' : stuckPair ? 'Berjalan bersama' : 'Berjalan';
   collisionCountValue.textContent = String(collisionCount);
   lastEventValue.textContent = lastCollisionSummary;
-  pauseButton.textContent = isPaused ? 'Lanjutkan' : 'Pause';
 
   const totalMomentum = bodies.reduce((sum, body) => sum + body.mass * body.v, 0);
-  const totalEnergy = bodies.reduce((sum, body) => sum + 0.5 * body.mass * body.v * body.v, 0);
+  const totalEnergy = bodies.reduce((sum, body) => sum + kineticEnergy(body), 0);
   totalMomentumValue.textContent = `${formatNumber(totalMomentum)} kg·m/s`;
   totalEnergyValue.textContent = `${formatNumber(totalEnergy)} J`;
+  pauseButton.textContent = isPaused ? 'Lanjutkan' : 'Pause';
 }
 
 function setOverlayVisibility() {
@@ -421,20 +448,19 @@ function resetSimulation() {
   stuckPair = false;
   lastCollisionSummary = 'Belum ada tumbukan antarbenda';
   accumulator = 0;
+
   bodies[0].mass = parameters.leftMass;
   bodies[0].x = bodies[0].initialX = -4.5;
   bodies[0].v = bodies[0].initialV = parameters.leftSpeed;
   bodies[0].spin = 0;
+
   bodies[1].mass = parameters.rightMass;
   bodies[1].x = bodies[1].initialX = 4.5;
   bodies[1].v = bodies[1].initialV = parameters.rightSpeed;
   bodies[1].spin = 0;
+
   syncVisuals();
   updateStats();
-}
-
-function kineticEnergy(body) {
-  return 0.5 * body.mass * body.v * body.v;
 }
 
 function applyWallBounce(body) {
@@ -450,6 +476,7 @@ function applyWallBounce(body) {
 function applyPairWallBounce() {
   const leftBody = bodies[0];
   const rightBody = bodies[1];
+
   if (leftBody.x - radius < bounds.left) {
     leftBody.x = bounds.left + radius;
     rightBody.x = leftBody.x + radius * 2;
@@ -458,8 +485,8 @@ function applyPairWallBounce() {
   } else if (rightBody.x + radius > bounds.right) {
     rightBody.x = bounds.right - radius;
     leftBody.x = rightBody.x - radius * 2;
-    leftBody.v = -Math.abs(leftBody.v) * wallRestitution;
-    rightBody.v = leftBody.v;
+    rightBody.v = -Math.abs(rightBody.v) * wallRestitution;
+    leftBody.v = rightBody.v;
   }
 }
 
@@ -480,6 +507,7 @@ function solveBallCollision() {
   if (activeCollision) {
     return;
   }
+
   activeCollision = true;
 
   const midpoint = (leftBody.x + rightBody.x) * 0.5;
@@ -490,6 +518,7 @@ function solveBallCollision() {
   const u2 = rightBody.v;
   const m1 = leftBody.mass;
   const m2 = rightBody.mass;
+
   const beforeMomentum = m1 * u1 + m2 * u2;
   const beforeEnergy = kineticEnergy(leftBody) + kineticEnergy(rightBody);
 
@@ -508,21 +537,23 @@ function solveBallCollision() {
 
   const afterMomentum = leftBody.mass * leftBody.v + rightBody.mass * rightBody.v;
   const afterEnergy = kineticEnergy(leftBody) + kineticEnergy(rightBody);
+
   collisionCount += 1;
-  lastCollisionSummary = `${collisionModes[parameters.collisionMode].label}: ` +
+  lastCollisionSummary =
+    `${collisionModes[parameters.collisionMode].label}: ` +
     `vA ${formatNumber(u1)}→${formatNumber(leftBody.v)} m/s, ` +
     `vB ${formatNumber(u2)}→${formatNumber(rightBody.v)} m/s, ` +
     `p ${formatNumber(beforeMomentum)}→${formatNumber(afterMomentum)} kg·m/s, ` +
     `Ek ${formatNumber(beforeEnergy)}→${formatNumber(afterEnergy)} J`;
+
   updateStats();
 }
 
 function stepSimulation(dt) {
-  if (isPaused) {
-    return;
-  }
+  if (isPaused) return;
 
   accumulator += Math.min(dt, 0.05);
+
   while (accumulator >= fixedStep) {
     if (stuckPair) {
       const dx = bodies[0].v * fixedStep;
@@ -538,8 +569,10 @@ function stepSimulation(dt) {
         body.spin -= dx / radius;
         applyWallBounce(body);
       });
+
       solveBallCollision();
     }
+
     accumulator -= fixedStep;
   }
 }
@@ -552,6 +585,7 @@ function syncVisuals() {
     const momentum = body.mass * body.v;
     const magnitude = Math.abs(momentum);
     tmpDir.set(Math.sign(momentum || 1), 0, 0);
+
     body.arrow.position.set(body.x, laneY + 1.05, 0);
     body.arrow.setDirection(tmpDir);
     body.arrow.setLength(Math.max(0.25, Math.min(4.2, 0.24 * magnitude + 0.35)), 0.3, 0.18);
@@ -560,6 +594,7 @@ function syncVisuals() {
     const x = (tmpVec.x * 0.5 + 0.5) * window.innerWidth;
     const y = (-tmpVec.y * 0.5 + 0.5) * window.innerHeight;
     const hidden = tmpVec.z > 1;
+
     body.labelEl.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`;
     body.labelEl.style.opacity = hidden ? '0' : '1';
     body.labelEl.innerHTML = `
@@ -575,6 +610,7 @@ function syncVisuals() {
 sliderInputs.forEach((input) => {
   input.addEventListener('input', (event) => {
     const value = Number(event.currentTarget.value);
+
     switch (event.currentTarget.dataset.input) {
       case 'left-mass':
         parameters.leftMass = value;
@@ -591,6 +627,7 @@ sliderInputs.forEach((input) => {
       default:
         break;
     }
+
     updateSliderReadouts();
   });
 });
@@ -618,9 +655,7 @@ applyButton.addEventListener('click', () => {
   resetSimulation();
 });
 
-resetButton.addEventListener('click', () => {
-  resetSimulation();
-});
+resetButton.addEventListener('click', resetSimulation);
 
 pauseButton.addEventListener('click', () => {
   isPaused = !isPaused;
